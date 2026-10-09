@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Invoice Capture</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--ink:#0f1b33;--mute:#6b7690;--line:#e3e8f0;--acc:#2f6bff;--acc2:#12b5a6;--warn:#fff6e0;--warnb:#f0b429;--bad:#d64545;--hero1:#0b1a3a;--hero2:#16336b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1020;--card:#141b30;--ink:#eaf0ff;--mute:#8d9ab8;--line:#26304d;--warn:#3a2f10;--hero1:#0d1d44;--hero2:#1a3a7a}}
+:root[data-theme="dark"]{--bg:#0b1020;--card:#141b30;--ink:#eaf0ff;--mute:#8d9ab8;--line:#26304d;--warn:#3a2f10;--hero1:#0d1d44;--hero2:#1a3a7a}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.hero{background:linear-gradient(135deg,var(--hero1),var(--hero2));color:#fff;padding:28px 20px 70px}
+.wrap{max-width:1100px;margin:0 auto}
+.hero h1{margin:0;font-size:26px;font-weight:650;letter-spacing:-.02em}.hero p{margin:4px 0 0;opacity:.75}
+.tabs{display:flex;gap:6px;margin-top:20px;flex-wrap:wrap}
+.tab{background:rgba(255,255,255,.1);color:#fff;border:0;padding:8px 16px;border-radius:999px;font:inherit;cursor:pointer}
+.tab.on{background:#fff;color:#0b1a3a;font-weight:600}
+main{margin:-48px auto 40px;padding:0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 6px 24px rgba(15,27,51,.06)}
+.card h2{margin:0 0 4px;font-size:17px}.sub{color:var(--mute);font-size:13px;margin:0 0 14px}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+button.p,button.s{border:0;border-radius:10px;padding:11px 18px;font:inherit;font-weight:600;cursor:pointer}
+button.p{background:var(--acc);color:#fff}button.s{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:26px;text-align:center;color:var(--mute);margin-bottom:14px}
+.drop.over{border-color:var(--acc);background:rgba(47,107,255,.06)}
+.q{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.q img{width:44px;height:44px;object-fit:cover;border-radius:8px}.q .st{margin-left:auto;color:var(--mute)}.q .st.err{color:var(--bad)}.q .st.ok{color:var(--acc2)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.kpi small{color:var(--mute);display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em}.kpi b{font-size:24px;letter-spacing:-.02em}
+.kpi i{font-style:normal;font-size:12px;color:var(--mute)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;min-width:760px}
+th{text-align:left;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.05em;padding:8px 6px;border-bottom:1px solid var(--line)}
+td{padding:4px 4px;border-bottom:1px solid var(--line)}tr.flag td{background:var(--warn)}
+td input{width:100%;background:transparent;border:1px solid transparent;border-radius:6px;padding:6px;color:var(--ink);font:inherit}
+td input:focus{border-color:var(--acc);outline:0;background:var(--card)}td input.n{text-align:right}
+.x{background:none;border:0;color:var(--mute);cursor:pointer;font-size:18px}
+.tot td{font-weight:700;border-bottom:0;padding:10px 6px}.tot td.r{text-align:right}
+.set{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--mute)}
+.set input{width:70px;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit}
+.note{background:var(--warn);border:1px solid var(--warnb);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:14px}
+.empty{text-align:center;color:var(--mute);padding:30px 0}
+.bar-l{font-size:11px;fill:var(--mute)}.bar-v{font-size:11px;fill:var(--ink);font-weight:600}
+.top{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.pill{font-size:12px;padding:2px 8px;border-radius:999px;background:rgba(18,181,166,.15);color:var(--acc2)}.pill.dn{background:rgba(214,69,69,.14);color:var(--bad)}
+.hide{display:none}
+@media print{.hero .tabs,.btns,.drop,.x{display:none}body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="hero"><div class="wrap">
+  <h1>Invoice Capture</h1>
+  <p>Photograph or upload handwritten invoices. Review, export to Excel, and see monthly and quarterly performance.</p>
+  <div class="tabs">
+    <button class="tab on" data-t="cap">Capture</button>
+    <button class="tab" data-t="led">Ledger</button>
+    <button class="tab" data-t="ins">Insights</button>
+  </div>
+</div></div>
+
+<main class="wrap">
+<section id="cap">
+  <div class="card">
+    <h2>Capture invoices</h2>
+    <p class="sub">Use your phone camera or upload photos and scans. Several invoices at once is fine.</p>
+    <div id="noai" class="note hide">Automatic reading is unavailable. You can still add invoices manually in the Ledger tab.</div>
+    <div class="drop" id="drop">Drag and drop invoice images here</div>
+    <div class="btns">
+      <button class="p" id="camBtn">📷 Take photo</button>
+      <button class="s" id="upBtn">⬆ Upload images</button>
+      <button class="s" id="manBtn">+ Add manually</button>
+    </div>
+    <input type="file" id="cam" accept="image/*" capture="environment" class="hide">
+    <input type="file" id="up" accept="image/*" multiple class="hide">
+    <div id="queue" style="margin-top:14px"></div>
+  </div>
+</section>
+
+<section id="led" class="hide">
+  <div class="card">
+    <h2>Invoice ledger</h2>
+    <p class="sub">Handwriting can be ambiguous. Amber rows need a quick check, and every cell is editable.</p>
+    <div class="set">
+      <label>Currency <input id="cur" value="£" maxlength="4"></label>
+      <label>VAT rate % <input id="vr" type="number" value="20" min="0" step="0.5"></label>
+      <span>Used for display and for flagging totals that do not add up.</span>
+    </div>
+    <div class="btns" style="margin:14px 0">
+      <button class="p" id="xl">Download Excel</button>
+      <button class="s" id="clr">Clear all</button>
+    </div>
+    <div class="tw" id="tbl"></div>
+  </div>
+</section>
+
+<section id="ins" class="hide">
+  <div id="insBody"></div>
+</section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let rows=[],sample=null,downloads=null,uid=1;
+try{const s=localStorage.getItem("inv_v1");if(s){rows=JSON.parse(s);uid=rows.reduce((m,r)=>Math.max(m,r.id),0)+1}}catch(e){}
+const save=()=>{try{localStorage.setItem("inv_v1",JSON.stringify(rows))}catch(e){}};
+const cur=()=>$("cur").value||"";const vr=()=>(parseFloat($("vr").value)||0)/100;
+const num=v=>{const n=parseFloat(String(v??"").replace(/[^0-9.\-]/g,""));return isNaN(n)?0:n};
+const money=n=>cur()+(+n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const short=n=>{const a=Math.abs(n);return cur()+(a>=1e6?(n/1e6).toFixed(1)+"m":a>=1e3?(n/1e3).toFixed(1)+"k":n.toFixed(0))};
+const bad=r=>!r.customer||!r.date||!r.invoice||Math.abs(r.sub+r.vat-r.net)>0.05||r.unsure;
+
+/* tabs */
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===b));
+  ["cap","led","ins"].forEach(t=>$(t).classList.toggle("hide",t!==b.dataset.t));
+  if(b.dataset.t==="ins")insights();if(b.dataset.t==="led")ledger();
+});
+const go=t=>document.querySelector('.tab[data-t="'+t+'"]').click();
+
+/* capabilities (standalone: in-browser OCR, no Claude, no server) */
+function parseInvoice(t){
+  const lines=t.split(/\n+/).map(s=>s.trim()).filter(Boolean),flat=lines.join("\n");
+  const invM=flat.match(/inv(?:oice)?\.?\s*(?:no\.?|number|num|#)?\s*[:.#-]?\s*([A-Z]{0,4}-?\d[A-Z0-9\-\/]*)/i);
+  let date="",m=flat.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\b/);
+  const iso=(y,mo,d)=>{y=+y<100?2000+ +y:+y;return(+mo>=1&&+mo<=12&&+d>=1&&+d<=31)?`${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`:""};
+  if(m)date=iso(m[3],m[2],m[1]);
+  else{m=flat.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?,?\s+(\d{2,4})\b/);
+    if(m){const i=MN.findIndex(x=>m[2].toLowerCase().startsWith(x.toLowerCase()));if(i>=0)date=iso(m[3],i+1,m[1])}}
+  const numIn=s=>{const a=s.replace(/,/g,"").match(/\d+(?:\.\d{1,2})?/g);return a?parseFloat(a[a.length-1]):0};
+  const find=(re,not)=>{for(const l of lines){if(re.test(l)&&!(not&&not.test(l))){const v=numIn(l);if(v)return v}}return 0};
+  let sub=find(/sub\s*-?\s*total/i),vat=find(/\b(vat|tax|gst)\b/i),
+      net=find(/(grand\s*total|total\s*(due|payable|amount)|net\s*total|amount\s*due|\btotal\b)/i,/sub\s*-?\s*total/i);
+  if(sub&&net&&!vat)vat=net-sub;
+  else if(sub&&vat&&!net)net=sub+vat;
+  else if(net&&vat&&!sub)sub=net-vat;
+  else if(net&&!sub&&!vat){sub=net/(1+vr());vat=net-sub}
+  let cust="";
+  for(let i=0;i<lines.length;i++){
+    const c=lines[i].match(/^(?:bill(?:ed)?\s*to|customer|client|name|to)\s*[:\-]?\s*(.*)$/i);
+    if(c){cust=(c[1]||lines[i+1]||"").trim();break}
+  }
+  const r=n=>Math.round(n*100)/100;
+  return{customer:cust,date,invoice_number:invM?invM[1]:"",sub_total:r(sub),vat:r(vat),net_total:r(net),uncertain:true};
+}
+sample={json:async(_p,{images})=>{
+  if(!window.Tesseract)throw new Error("ocr");
+  const res=await Tesseract.recognize(images[0],"eng");
+  return{invoices:[parseInvoice(res.data.text)]};
+}};
+downloads={save:async({filename,data})=>{
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([data]));a.download=filename;
+  document.body.appendChild(a);a.click();a.remove();
+}};
+
+/* capture */
+$("camBtn").onclick=()=>$("cam").click();$("upBtn").onclick=()=>$("up").click();
+$("cam").onchange=e=>{handle(e.target.files);e.target.value=""};
+$("up").onchange=e=>{handle(e.target.files);e.target.value=""};
+const d=$("drop");
+["dragover","dragenter"].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add("over")}));
+["dragleave","drop"].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove("over")}));
+d.addEventListener("drop",e=>{if(sample)handle(e.dataTransfer.files)});
+$("manBtn").onclick=()=>{rows.unshift({id:uid++,customer:"",date:"",invoice:"",sub:0,vat:0,net:0});save();go("led")};
+
+function shrink(file){return new Promise((res,rej)=>{
+  const url=URL.createObjectURL(file),im=new Image();
+  im.onload=()=>{const m=1800,k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement("canvas");
+    c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext("2d");x.filter="grayscale(1) contrast(1.35)";x.drawImage(im,0,0,c.width,c.height);
+    c.toBlob(b=>b?res({blob:b,url}):rej(new Error("x")),"image/jpeg",.85)};
+  im.onerror=()=>rej(new Error("x"));im.src=url})}
+
+const PROMPT=`You are reading a photo of a HANDWRITTEN invoice (there may be more than one invoice in the image). Extract each invoice.
+Return ONLY JSON: {"invoices":[{"customer":string,"date":"YYYY-MM-DD","invoice_number":string,"sub_total":number,"vat":number,"net_total":number,"uncertain":boolean}]}
+Rules: net_total is the final amount payable including VAT. If only two of sub_total/vat/net_total are legible, derive the third. Use plain numbers without currency symbols. Resolve dates such as 3/9/26 as day/month/year unless clearly otherwise. Use "" for an unreadable text field and 0 for unreadable numbers, and set uncertain=true whenever handwriting was hard to read or you guessed. If the image is not an invoice return {"invoices":[]}.`;
+
+async function handle(files){
+  if(!sample)return;
+  for(const f of [...files]){
+    if(!f.type.startsWith("image/"))continue;
+    const el=document.createElement("div");el.className="q";el.innerHTML='<img alt=""><span></span><span class="st">Preparing…</span>';
+    el.querySelector("span").textContent=f.name||"Camera photo";$("queue").prepend(el);
+    const st=el.querySelector(".st");
+    try{
+      const {blob,url}=await shrink(f);el.querySelector("img").src=url;st.textContent="Reading handwriting…";
+      const out=await sample.json(PROMPT,{images:[blob],cache:false});
+      const list=(out&&out.invoices)||[];
+      if(!list.length){st.textContent="No invoice found";st.className="st err";continue}
+      list.forEach(x=>{const sub=num(x.sub_total),vat=num(x.vat),net=num(x.net_total);
+        rows.unshift({id:uid++,customer:String(x.customer||""),date:String(x.date||""),invoice:String(x.invoice_number||""),sub,vat,net,unsure:!!x.uncertain})});
+      save();st.textContent=list.length+" captured ✓";st.className="st ok";
+    }catch(e){st.textContent=e&&e.code==="not_granted"?"Permission declined":"Could not read this image";st.className="st err"}
+  }
+}
+
+/* ledger */
+function ledger(){
+  if(!rows.length){$("tbl").innerHTML='<div class="empty">No invoices yet. Capture one, or <a href="#" id="demo">load demo data</a> to preview the insights.</div>';
+    const a=$("demo");if(a)a.onclick=e=>{e.preventDefault();demo();ledger()};return}
+  let h="<table><thead><tr><th>Customer name</th><th>Date</th><th>Invoice no.</th><th>Sub total</th><th>VAT</th><th>Net total</th><th></th></tr></thead><tbody>";
+  rows.forEach(r=>{h+=`<tr class="${bad(r)?"flag":""}" data-id="${r.id}">
+   <td><input data-k="customer" value="${esc(r.customer)}"></td>
+   <td><input data-k="date" type="date" value="${esc(r.date)}"></td>
+   <td><input data-k="invoice" value="${esc(r.invoice)}"></td>
+   <td><input class="n" data-k="sub" value="${r.sub.toFixed(2)}"></td>
+   <td><input class="n" data-k="vat" value="${r.vat.toFixed(2)}"></td>
+   <td><input class="n" data-k="net" value="${r.net.toFixed(2)}"></td>
+   <td><button class="x" title="Delete">×</button></td></tr>`});
+  const t=sum(rows);
+  h+=`<tr class="tot"><td colspan="3">Total (${rows.length} invoices)</td><td class="r">${money(t.sub)}</td><td class="r">${money(t.vat)}</td><td class="r">${money(t.net)}</td><td></td></tr></tbody></table>`;
+  $("tbl").innerHTML=h;
+}
+const sum=a=>a.reduce((t,r)=>({sub:t.sub+r.sub,vat:t.vat+r.vat,net:t.net+r.net}),{sub:0,vat:0,net:0});
+$("tbl").addEventListener("change",e=>{
+  const tr=e.target.closest("tr[data-id]");if(!tr)return;const r=rows.find(x=>x.id==tr.dataset.id),k=e.target.dataset.k;
+  if(["sub","vat","net"].includes(k)){r[k]=num(e.target.value);
+    if(k==="sub"&&!r.vat&&!r.net){r.vat=+(r.sub*vr()).toFixed(2);r.net=+(r.sub+r.vat).toFixed(2)}
+    if(k==="net"&&r.sub&&!r.vat)r.vat=+(r.net-r.sub).toFixed(2)}
+  else r[k]=e.target.value;
+  r.unsure=false;save();ledger()});
+$("tbl").addEventListener("click",e=>{if(!e.target.classList.contains("x"))return;
+  const id=e.target.closest("tr").dataset.id;rows=rows.filter(r=>r.id!=id);save();ledger()});
+$("clr").onclick=()=>{if(rows.length&&confirm("Remove all captured invoices?")){rows=[];save();ledger()}};
+$("cur").oninput=()=>{ledger()};
+
+/* aggregation */
+const valid=()=>rows.filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.date));
+const MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function group(kind){
+  const m={};valid().forEach(r=>{const y=r.date.slice(0,4),mo=+r.date.slice(5,7);
+    const key=kind==="m"?y+"-"+String(mo).padStart(2,"0"):y+"-Q"+Math.ceil(mo/3);
+    const label=kind==="m"?MN[mo-1]+" "+y.slice(2):"Q"+Math.ceil(mo/3)+" "+y;
+    (m[key]=m[key]||{key,label,n:0,sub:0,vat:0,net:0});m[key].n++;m[key].sub+=r.sub;m[key].vat+=r.vat;m[key].net+=r.net});
+  return Object.values(m).sort((a,b)=>a.key.localeCompare(b.key))}
+function chart(data){
+  if(!data.length)return'<div class="empty">No data yet</div>';
+  const W=Math.max(320,data.length*64),H=220,pb=34,pt=22,max=Math.max(...data.map(x=>x.net))||1,bw=Math.min(40,W/data.length-14);
+  let s=`<div class="tw"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:${Math.min(W,520)}px"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f6bff"/><stop offset="1" stop-color="#12b5a6"/></linearGradient></defs>`;
+  data.forEach((x,i)=>{const h=(H-pb-pt)*x.net/max,cx=(i+.5)*W/data.length;
+    s+=`<rect x="${cx-bw/2}" y="${H-pb-h}" width="${bw}" height="${h}" rx="6" fill="url(#g)"/>
+    <text class="bar-v" x="${cx}" y="${H-pb-h-6}" text-anchor="middle">${short(x.net)}</text>
+    <text class="bar-l" x="${cx}" y="${H-12}" text-anchor="middle">${esc(x.label)}</text>`});
+  return s+"</svg></div>"}
+function tbl(data){
+  if(!data.length)return"";
+  let h='<div class="tw"><table style="min-width:420px"><thead><tr><th>Period</th><th>Invoices</th><th>Sub total</th><th>VAT</th><th>Net total</th><th>Change</th></tr></thead><tbody>';
+  data.forEach((x,i)=>{const p=data[i-1],ch=p&&p.net?(x.net-p.net)/p.net*100:null;
+    h+=`<tr><td style="padding:8px 6px">${esc(x.label)}</td><td>${x.n}</td><td>${money(x.sub)}</td><td>${money(x.vat)}</td><td><b>${money(x.net)}</b></td><td>${ch===null?"–":`<span class="pill ${ch<0?"dn":""}">${ch>=0?"▲":"▼"} ${Math.abs(ch).toFixed(1)}%</span>`}</td></tr>`});
+  return h+"</tbody></table></div>"}
+
+function insights(){
+  const v=valid();
+  if(!v.length){$("insBody").innerHTML='<div class="card"><div class="empty">Capture invoices with valid dates to see insights.<br><br><button class="s" id="demo2">Load demo data</button></div></div>';
+    $("demo2").onclick=()=>{demo();insights()};return}
+  const t=sum(v),M=group("m"),Q=group("q"),lm=M[M.length-1],pm=M[M.length-2],lq=Q[Q.length-1],pq=Q[Q.length-2];
+  const delta=(a,b)=>b&&b.net?`<i>${a.net>=b.net?"▲":"▼"} ${Math.abs((a.net-b.net)/b.net*100).toFixed(1)}% vs ${esc(b.label)}</i>`:"<i>&nbsp;</i>";
+  const cust={};v.forEach(r=>{const k=(r.customer||"Unknown").trim();cust[k]=(cust[k]||0)+r.net});
+  const top=Object.entries(cust).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  let h=`<div class="kpis">
+   <div class="kpi"><small>Total invoiced</small><b>${money(t.net)}</b><br><i>${v.length} invoices</i></div>
+   <div class="kpi"><small>VAT collected</small><b>${money(t.vat)}</b><br><i>Excl. VAT ${money(t.sub)}</i></div>
+   <div class="kpi"><small>Latest month · ${esc(lm.label)}</small><b>${money(lm.net)}</b><br>${delta(lm,pm)}</div>
+   <div class="kpi"><small>Latest quarter · ${esc(lq.label)}</small><b>${money(lq.net)}</b><br>${delta(lq,pq)}</div>
+   <div class="kpi"><small>Average invoice</small><b>${money(t.net/v.length)}</b><br><i>${top.length} customers shown below</i></div></div>
+   <div class="grid2">
+   <div class="card"><h2>Monthly net revenue</h2><p class="sub">Net total including VAT</p>${chart(M)}</div>
+   <div class="card"><h2>Quarterly net revenue</h2><p class="sub">Calendar quarters</p>${chart(Q)}</div></div>
+   <div class="grid2">
+   <div class="card"><h2>Monthly breakdown</h2><p class="sub">&nbsp;</p>${tbl(M)}</div>
+   <div class="card"><h2>Quarterly breakdown</h2><p class="sub">&nbsp;</p>${tbl(Q)}</div></div>
+   <div class="card"><h2>Top customers</h2><p class="sub">Share of total invoiced</p>${top.map(([n,x])=>`<div class="top"><span>${esc(n)}</span><span><b>${money(x)}</b> &nbsp;<span class="pill">${(x/t.net*100).toFixed(0)}%</span></span></div>`).join("")}</div>
+   <div class="btns"><button class="p" id="xl2">Download Excel report</button><button class="s" onclick="window.print()">Print / save as PDF</button></div>`;
+  $("insBody").innerHTML=h;$("xl2").onclick=exportXlsx;
+}
+
+/* excel */
+async function exportXlsx(){
+  if(!rows.length){alert("Nothing to export yet.");return}
+  if(typeof XLSX==="undefined"){alert("Excel library did not load.");return}
+  const r2=n=>Math.round(n*100)/100,wb=XLSX.utils.book_new();
+  const A=[["Customer Name","Date","Invoice Number","Sub Total","VAT","Net Total"]];
+  [...rows].sort((a,b)=>(a.date||"").localeCompare(b.date||"")).forEach(r=>A.push([r.customer,r.date,r.invoice,r2(r.sub),r2(r.vat),r2(r.net)]));
+  const t=sum(rows);A.push([],["TOTAL","","",r2(t.sub),r2(t.vat),r2(t.net)]);
+  const ws=XLSX.utils.aoa_to_sheet(A);ws["!cols"]=[{wch:30},{wch:12},{wch:16},{wch:14},{wch:12},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,"Invoices");
+  [["m","Monthly"],["q","Quarterly"]].forEach(([k,name])=>{
+    const g=group(k),B=[["Period","Invoices","Sub Total","VAT","Net Total","Change vs previous"]];
+    g.forEach((x,i)=>{const p=g[i-1];B.push([x.label,x.n,r2(x.sub),r2(x.vat),r2(x.net),p&&p.net?r2((x.net-p.net)/p.net*100)/100:""])});
+    const s=XLSX.utils.aoa_to_sheet(B);s["!cols"]=[{wch:14},{wch:10},{wch:14},{wch:12},{wch:14},{wch:18}];
+    for(let i=1;i<B.length;i++){const c=s["F"+(i+1)];if(c&&c.v!=="")c.z="0.0%"}
+    XLSX.utils.book_append_sheet(wb,s,name)});
+  const buf=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  if(!downloads){alert("Downloads are not available in this view.");return}
+  try{await downloads.save({filename:"invoices-"+new Date().toISOString().slice(0,10)+".xlsx",data:buf})}catch(e){}
+}
+$("xl").onclick=exportXlsx;
+
+/* demo */
+function demo(){
+  const names=["Harbour Logistics","Northgate Foods","Brightside Dental","Kestrel Print","Oakline Builders"];let k=0;
+  for(let m=0;m<9;m++){const n=3+(m%3);for(let j=0;j<n;j++){
+    const sub=Math.round((400+((m*7+j*13)%17)*90+m*60)*100)/100,vat=+(sub*.2).toFixed(2);
+    rows.push({id:uid++,customer:names[(m+j)%5],date:new Date(Date.UTC(new Date().getFullYear()-(m>8?1:0),8-m+0,3+j*7)).toISOString().slice(0,10),invoice:"DEMO-"+String(1000+(k++)),sub,vat,net:+(sub+vat).toFixed(2)})}}
+  save()}
+ledger();
+</script>
+</body>
+</html>
