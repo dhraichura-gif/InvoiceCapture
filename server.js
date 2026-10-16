@@ -1,8 +1,17 @@
 import express from "express";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
 app.use(express.json({ limit: "15mb" }));
-app.use(express.static("public"));
+const here = path.dirname(fileURLToPath(import.meta.url));
+const pageFile = [path.join(here, "public", "index.html"), path.join(here, "index.html")].find(f => fs.existsSync(f));
+if (fs.existsSync(path.join(here, "public"))) app.use(express.static(path.join(here, "public")));
+app.get("/", (_req, res) => {
+  if (pageFile) return res.sendFile(pageFile);
+  res.status(500).type("text").send("index.html not found. Files in project folder: " + fs.readdirSync(here).join(", "));
+});
 
 const { ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, ACCESS_CODE, MODEL } = process.env;
 const provider = ANTHROPIC_API_KEY ? "anthropic" : OPENAI_API_KEY ? "openai" : GEMINI_API_KEY ? "gemini" : null;
