@@ -13,9 +13,9 @@ app.get("/", (_req, res) => {
   res.status(500).type("text").send("index.html not found. Files in project folder: " + fs.readdirSync(here).join(", "));
 });
 
-const { ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, ACCESS_CODE, MODEL } = process.env;
+const { ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, ACCESS_CODE, MODEL, FALLBACK_MODEL } = process.env;
 const provider = ANTHROPIC_API_KEY ? "anthropic" : OPENAI_API_KEY ? "openai" : GEMINI_API_KEY ? "gemini" : null;
-const DEFAULT_MODEL = { anthropic: "claude-sonnet-5-5", openai: "gpt-4o", gemini: "gemini-2.5-flash" };
+const DEFAULT_MODEL = { anthropic: "claude-sonnet-5-5", openai: "gpt-4o", gemini: "gemini-3.8-flash" };
 
 const PROMPT = `You are reading a photo of a HANDWRITTEN invoice from a UK business. The photo may be skewed, dark, or include background such as a bag or table. There may be more than one invoice in the image.
 
@@ -39,12 +39,37 @@ Guidance:
 async function call(url, options) {
   const r = await fetch(url, options);
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j?.error?.message || `provider error ${r.status}`);
+  if (!r.ok) {
+    const err = new Error(j?.error?.message || `provider error ${r.status}`);
+    err.status = r.status;
+    throw err;
+  }
   return j;
 }
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const transient = e => [429, 500, 502, 503, 504].includes(e.status) || /high demand|overloaded|unavailable|try again/i.test(e.message);
+
+// Retries short-lived provider overloads, then tries FALLBACK_MODEL (if set).
 async function readInvoice(b64) {
-  const model = MODEL || DEFAULT_MODEL[provider];
+  const main = MODEL || DEFAULT_MODEL[provider];
+  const models = [main, ...(FALLBACK_MODEL && FALLBACK_MODEL !== main ? [FALLBACK_MODEL] : [])];
+  let last;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { return await readOnce(b64, model); }
+      catch (e) {
+        last = e;
+        if (!transient(e)) throw e;
+        console.warn(`${model} busy (attempt ${attempt + 1}): ${e.message.slice(0, 80)}`);
+        await sleep(1500 * 2 ** attempt);
+      }
+    }
+  }
+  throw last;
+}
+
+async function readOnce(b64, model) {
   if (provider === "anthropic") {
     const j = await call("https://api.anthropic.com/v1/messages", {
       method: "POST",
